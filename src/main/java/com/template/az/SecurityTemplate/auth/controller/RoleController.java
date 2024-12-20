@@ -19,10 +19,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-
 import static com.template.az.SecurityTemplate.auth.controller.RoleController.Routes.ROOT;
 import static com.template.az.SecurityTemplate.auth.controller.RoleController.Routes.ROOT_ID;
-import static com.template.az.SecurityTemplate.auth.controller.RoleController.Routes.ROOT_NAME;
 
 @RestController
 @RequiredArgsConstructor
@@ -31,7 +29,6 @@ class RoleController {
     static final class Routes {
         static final String ROOT = "/roles";
         static final String ROOT_ID = "/roles/{id}";
-        static final String ROOT_NAME = "/roles/{name}";
     }
 
     private final RoleFacade roleFacade;
@@ -44,11 +41,6 @@ class RoleController {
     @GetMapping(ROOT_ID)
     RoleDto findRole(@PathVariable final Long id) {
         return roleFacade.findRole(id);
-    }
-
-    @GetMapping(ROOT_NAME)
-    RoleDto findRoleByName(@PathVariable final String name) {
-        return roleFacade.findRoleByName(name);
     }
 
     @PostMapping(ROOT)

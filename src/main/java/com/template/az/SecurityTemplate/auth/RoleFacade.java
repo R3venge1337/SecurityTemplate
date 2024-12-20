@@ -13,8 +13,6 @@ public interface RoleFacade {
 
     RoleDto findRole(final Long id);
 
-    RoleDto findRoleByName(final String name);
-
     IdDto saveRole(final CreateRoleForm createForm);
 
     void updateRole(final Long id, final UpdateRoleForm updateForm);

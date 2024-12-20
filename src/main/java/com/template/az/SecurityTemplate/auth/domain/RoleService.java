@@ -42,13 +42,6 @@ class RoleService implements RoleFacade {
     }
 
     @Override
-    public RoleDto findRoleByName(final String name) {
-        return roleRepository.findByName(name)
-                .map(this::mapToDto)
-                .orElseThrow(() -> new NotFoundException(ErrorMessages.ROLE_NOT_FOUND, name));
-    }
-
-    @Override
     @Transactional
     public IdDto saveRole(final CreateRoleForm createForm) {
         DtoValidator.validate(createForm);
