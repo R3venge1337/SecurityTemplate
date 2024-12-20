@@ -105,7 +105,7 @@ class AuthenticationService implements AuthenticationFacade {
         if (optionalUser.isPresent()) {
             Account account = optionalUser.get();
             if (account.getVerificationCodeExpiredAt().isBefore(LocalDateTime.now())) {
-                throw new AlreadyVerifiedException(VERIFICATION_CODE_INVALID);
+                throw new AlreadyVerifiedException(VERIFICATION_CODE_INVALID, verificationCode);
             }
             if (account.getVerificationCode().equals(verificationCode)) {
                 account.setEnabled(true);
@@ -113,10 +113,10 @@ class AuthenticationService implements AuthenticationFacade {
                 account.setVerificationCodeExpiredAt(null);
                 accountRepository.save(account);
             } else {
-                throw new AlreadyVerifiedException(VERIFICATION_CODE_INVALID);
+                throw new AlreadyVerifiedException(VERIFICATION_CODE_INVALID,verificationCode);
             }
         } else {
-            throw new NotFoundException(ACCOUNT_NOT_FOUND);
+            throw new NotFoundException(ACCOUNT_NOT_FOUND, verificationCode);
         }
     }
 
@@ -132,7 +132,7 @@ class AuthenticationService implements AuthenticationFacade {
             sendVerificationEmail(account);
             accountRepository.save(account);
         } else {
-            throw new NotFoundException(USER_NOT_FOUND);
+            throw new NotFoundException(USER_NOT_FOUND, email);
         }
     }
 
