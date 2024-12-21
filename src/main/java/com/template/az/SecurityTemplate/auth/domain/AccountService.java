@@ -122,7 +122,7 @@ class AccountService implements AccountFacade {
     }
 
     AccountDto mapToDto(final Account account) {
-        return new AccountDto(account.getUuid(), account.getUsername(), account.getPassword(), account.getEmail(), account.getEnabled(), account.getCreatedAt(), mapToSetRoles(account));
+        return new AccountDto(account.getUuid(), account.getUsername(), account.getPassword(), account.getEmail(), account.getEnabled(), account.getAccountNonLocked(), account.getCreatedAt(), mapToSetRoles(account));
     }
 
     private Set<String> mapToSetRoles(final Account account) {
