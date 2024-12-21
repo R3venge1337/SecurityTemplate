@@ -10,9 +10,11 @@ import com.template.az.SecurityTemplate.auth.dto.CreateUserForm;
 import com.template.az.SecurityTemplate.auth.dto.UserResponse;
 import com.template.az.SecurityTemplate.auth.dto.UserWithAccount;
 import com.template.az.SecurityTemplate.auth.security.JwtUtils;
+import com.template.az.SecurityTemplate.common.exception.AccountLockedException;
 import com.template.az.SecurityTemplate.common.exception.AlreadyExistException;
 import com.template.az.SecurityTemplate.common.exception.AlreadyVerifiedException;
 import com.template.az.SecurityTemplate.common.exception.NotFoundException;
+import com.template.az.SecurityTemplate.common.exception.PasswordDoesNotMatchException;
 import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +22,8 @@ import org.apache.commons.lang3.Validate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -31,11 +33,13 @@ import java.util.Random;
 import java.util.Set;
 
 import static com.template.az.SecurityTemplate.auth.domain.DomainMapper.mapToUserResponse;
+import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.ACCOUNT_LOCKED;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.ACCOUNT_NOT_FOUND;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.ACCOUNT_NOT_VERIFIED;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.ACCOUNT_VERIFIED;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.EMAIL_IS_TAKEN;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.LOGIN_FIELDS_EMPTY;
+import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.PASSWORD_NOT_MATCH;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.REGISTER_FORM_EMPTY;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.ROLE_NOT_FOUND;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.USER_IS_TAKEN;
@@ -53,7 +57,7 @@ class AuthenticationService implements AuthenticationFacade {
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
     private final RoleRepository roleRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordService passwordService;
     private final PermissionRepository permissionRepository;
     private final JwtUtils jwtTokenUtil;
     private final UserFacade userFacade;
@@ -61,17 +65,34 @@ class AuthenticationService implements AuthenticationFacade {
 
     public AuthenticationResponse authenticateUser(@Valid @RequestBody final AuthenticationRequest loginRequest) {
         Validate.notNull(loginRequest, LOGIN_FIELDS_EMPTY);
-        Authentication auth = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.login(), loginRequest.password()));
         UserWithAccount user = userFacade.findByUsername(loginRequest.login());
+        Authentication auth;
+        String jwt = null;
 
         if (!user.isEnabled()) {
             throw new AlreadyVerifiedException(ACCOUNT_NOT_VERIFIED);
         }
 
-        String jwt = jwtTokenUtil.generateToken(user);
+        Account account = accountRepository.findByUuid(user.accountUuid())
+                .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND, user.accountUuid()));
 
-        SecurityContextHolder.getContext().setAuthentication(auth);
+        if (!passwordService.matchPassword(loginRequest.password(), account.getPassword())) {
+            handleFailedLoginAttempt(account);
+            throw new PasswordDoesNotMatchException(PASSWORD_NOT_MATCH);
+        }
 
+        try {
+            account.setFailedAttempt(0);
+            account.setAccountNonLocked(true);
+            accountRepository.save(account);
+            auth = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.login(), loginRequest.password()));
+
+            jwt = jwtTokenUtil.generateToken(user);
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+        } catch (AuthenticationException e) {
+            handleFailedLoginAttempt(account);
+        }
         return new AuthenticationResponse(jwt);
     }
 
@@ -113,7 +134,7 @@ class AuthenticationService implements AuthenticationFacade {
                 account.setVerificationCodeExpiredAt(null);
                 accountRepository.save(account);
             } else {
-                throw new AlreadyVerifiedException(VERIFICATION_CODE_INVALID,verificationCode);
+                throw new AlreadyVerifiedException(VERIFICATION_CODE_INVALID, verificationCode);
             }
         } else {
             throw new NotFoundException(ACCOUNT_NOT_FOUND, verificationCode);
@@ -184,7 +205,7 @@ class AuthenticationService implements AuthenticationFacade {
         Account account = new Account();
         account.setUsername(createForm.username());
         account.setEmail(createForm.email());
-        account.setPassword(passwordEncoder.encode(createForm.password()));
+        account.setPassword(passwordService.encodePassword(createForm.password()));
         account.setEnabled(false);
         account.setAccountNonLocked(true);
         account.addRole(userRole);
@@ -192,4 +213,18 @@ class AuthenticationService implements AuthenticationFacade {
         account.setVerificationCodeExpiredAt(LocalDateTime.now().plusMinutes(15));
         return account;
     }
+
+    // Method to handle failed login attempts
+    private void handleFailedLoginAttempt(final Account account) {
+        int failedAttempts = account.getFailedAttempt();
+        failedAttempts++;
+
+        if (failedAttempts >= 3) {
+            account.setAccountNonLocked(false);// Lock the account
+            throw new AccountLockedException(ACCOUNT_LOCKED);
+        }
+        account.setFailedAttempt(failedAttempts);
+        accountRepository.save(account);
+    }
 }
+
