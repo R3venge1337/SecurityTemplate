@@ -46,6 +46,8 @@ class RoleService implements RoleFacade {
     public IdDto saveRole(final CreateRoleForm createForm) {
         DtoValidator.validate(createForm);
 
+        checkUnique(createForm.name());
+
         final Role role = new Role();
         role.setName(createForm.name());
         role.setDescription(createForm.description());
@@ -85,7 +87,7 @@ class RoleService implements RoleFacade {
 
     void checkUnique(final String name) {
         if (roleRepository.existsByName(name)) {
-            throw new NotUniqueException(Role.Fields.name, ErrorMessages.ROLE_NOT_FOUND);
+            throw new NotUniqueException(Role.Fields.name, ErrorMessages.ROLE_IS_TAKEN);
         }
     }
 }
