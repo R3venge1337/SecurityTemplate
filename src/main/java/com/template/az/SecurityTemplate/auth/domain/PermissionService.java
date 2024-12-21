@@ -46,6 +46,8 @@ class PermissionService implements PermissionFacade {
     public IdDto savePermission(final CreatePermissionForm createForm) {
         DtoValidator.validate(createForm);
 
+        checkUnique(createForm.name());
+
         final Permission permission = new Permission();
         permission.setName(createForm.name());
         permission.setDescription(createForm.description());
@@ -85,7 +87,7 @@ class PermissionService implements PermissionFacade {
 
     void checkUnique(final String name) {
         if (permissionRepository.existsByName(name)) {
-            throw new NotUniqueException(Permission.Fields.name, ErrorMessages.PERMISSION_NOT_FOUND);
+            throw new NotUniqueException(Permission.Fields.name, ErrorMessages.PERMISSION_IS_TAKEN);
         }
     }
 }
