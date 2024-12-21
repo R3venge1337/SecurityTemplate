@@ -76,6 +76,13 @@ public class GlobalExceptionHandler {
         return new ErrorDto(exception.getMessage());
     }
 
+    @ExceptionHandler(AccountLockedException.class)
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public ErrorDto accountLockedException(final AccountLockedException exception) {
+        log.warn(exception.getMessage(), exception);
+        return new ErrorDto(exception.getMessage());
+    }
+
     @ExceptionHandler(PasswordDoesNotMatchException.class)
     @ResponseStatus(value = HttpStatus.BAD_REQUEST)
     public ErrorDto notMatchException(final PasswordDoesNotMatchException exception) {
