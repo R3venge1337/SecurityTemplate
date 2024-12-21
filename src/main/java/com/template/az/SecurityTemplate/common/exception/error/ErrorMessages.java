@@ -8,6 +8,8 @@ public class ErrorMessages {
     public static final String ACCOUNT_NOT_FOUND = "Error: Account has not been found!: %s";
     public static final String ACCOUNT_IS_TAKEN = "Error: Account is already taken!: %s";
     public static final String EMAIL_IS_TAKEN = "Error: Email is already taken!: %s";
+    public static final String PERMISSION_IS_TAKEN = "Error: Permission is already taken!: %s";
+    public static final String ROLE_IS_TAKEN = "Error: Role is already taken!: %s";
     public static final String VERIFICATION_CODE_INVALID = "Error: Verification code expired or sth went wrong! %s";
     public static final String LOGIN_FIELDS_EMPTY = "Error: Login and password cannot be null or empty! %s";
     public static final String REGISTER_FORM_EMPTY = "Error: Some register fields have wrong data! %s";
