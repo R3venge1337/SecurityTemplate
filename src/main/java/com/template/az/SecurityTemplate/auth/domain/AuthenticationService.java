@@ -19,6 +19,7 @@ import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.Validate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -53,6 +54,18 @@ class AuthenticationService implements AuthenticationFacade {
     private static final String DEFAULT_ROLE = "USER";
     private static final Set<String> DEFAULT_PERMISSIONS_FOR_USER = Set.of("READ", "WRITE");
 
+    @Value(value = "${ACCOUNT_LOCK_TIME}")
+    private Long ACCOUNT_LOCK_TIME;
+
+    @Value(value = "${VERIFICATION_CODE_EXPIRED_TIME}")
+    private Long VERIFICATION_CODE_EXPIRED_TIME;
+
+    @Value(value = "${RESEND_VERIFICATION_CODE_EXPIRED_TIME}")
+    private Long RESEND_VERIFICATION_CODE_EXPIRED_TIME;
+
+    @Value(value = "${MAX_FAILED_ATTEMPTS}")
+    private Long MAX_FAILED_ATTEMPTS;
+
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
@@ -76,6 +89,10 @@ class AuthenticationService implements AuthenticationFacade {
         Account account = accountRepository.findByUuid(user.accountUuid())
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND, user.accountUuid()));
 
+        if (!user.isNonLocked() && LocalDateTime.now().isBefore(account.getLockTime())) {
+            throw new AccountLockedException(ACCOUNT_LOCKED, MAX_FAILED_ATTEMPTS, account.getLockTime());
+        }
+
         if (!passwordService.matchPassword(loginRequest.password(), account.getPassword())) {
             handleFailedLoginAttempt(account);
             throw new PasswordDoesNotMatchException(PASSWORD_NOT_MATCH);
@@ -84,6 +101,7 @@ class AuthenticationService implements AuthenticationFacade {
         try {
             account.setFailedAttempt(0);
             account.setAccountNonLocked(true);
+            account.setLockTime(null);
             accountRepository.save(account);
             auth = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.login(), loginRequest.password()));
 
@@ -149,7 +167,7 @@ class AuthenticationService implements AuthenticationFacade {
                 throw new AlreadyVerifiedException(ACCOUNT_VERIFIED, account.getUsername());
             }
             account.setVerificationCode(generateVerificationCode());
-            account.setVerificationCodeExpiredAt(LocalDateTime.now().plusHours(1));
+            account.setVerificationCodeExpiredAt(addHoursToCurrentDateTime(RESEND_VERIFICATION_CODE_EXPIRED_TIME));
             sendVerificationEmail(account);
             accountRepository.save(account);
         } else {
@@ -210,7 +228,7 @@ class AuthenticationService implements AuthenticationFacade {
         account.setAccountNonLocked(true);
         account.addRole(userRole);
         account.setVerificationCode(generateVerificationCode());
-        account.setVerificationCodeExpiredAt(LocalDateTime.now().plusMinutes(15));
+        account.setVerificationCodeExpiredAt(addMinutesToCurrentDateTime(VERIFICATION_CODE_EXPIRED_TIME));
         return account;
     }
 
@@ -219,12 +237,22 @@ class AuthenticationService implements AuthenticationFacade {
         int failedAttempts = account.getFailedAttempt();
         failedAttempts++;
 
-        if (failedAttempts >= 3) {
+        if (failedAttempts > 3) {
             account.setAccountNonLocked(false);// Lock the account
+            account.setLockTime(addMinutesToCurrentDateTime(ACCOUNT_LOCK_TIME));
+            accountRepository.save(account);
             throw new AccountLockedException(ACCOUNT_LOCKED);
         }
         account.setFailedAttempt(failedAttempts);
         accountRepository.save(account);
+    }
+
+    private static LocalDateTime addMinutesToCurrentDateTime(final Long min) {
+        return LocalDateTime.now().plusMinutes(min);
+    }
+
+    private LocalDateTime addHoursToCurrentDateTime(final Long hours) {
+        return LocalDateTime.now().plusHours(hours);
     }
 }
 
