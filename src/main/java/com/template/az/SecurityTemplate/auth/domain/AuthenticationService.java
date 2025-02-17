@@ -15,6 +15,7 @@ import com.template.az.SecurityTemplate.common.exception.AlreadyExistException;
 import com.template.az.SecurityTemplate.common.exception.AlreadyVerifiedException;
 import com.template.az.SecurityTemplate.common.exception.NotFoundException;
 import com.template.az.SecurityTemplate.common.exception.PasswordDoesNotMatchException;
+import com.template.az.SecurityTemplate.common.exception.PasswordExpiredException;
 import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessa
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.ACCOUNT_VERIFIED;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.EMAIL_IS_TAKEN;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.LOGIN_FIELDS_EMPTY;
+import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.PASSWORD_EXPIRED_AFTER_POLICY;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.PASSWORD_NOT_MATCH;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.REGISTER_FORM_EMPTY;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.ROLE_NOT_FOUND;
@@ -66,6 +68,9 @@ class AuthenticationService implements AuthenticationFacade {
     @Value(value = "${MAX_FAILED_ATTEMPTS}")
     private Long MAX_FAILED_ATTEMPTS;
 
+    @Value(value = "${PASSWORD_EXPIRATION_DAYS_POLICY}")
+    private Long PASSWORD_EXPIRATION_DAYS_POLICY;
+
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
@@ -86,8 +91,13 @@ class AuthenticationService implements AuthenticationFacade {
             throw new AlreadyVerifiedException(ACCOUNT_NOT_VERIFIED);
         }
 
+        if (user.passwordLastTimeChanged().plusDays(PASSWORD_EXPIRATION_DAYS_POLICY).isBefore(LocalDateTime.now())) {
+            throw new PasswordExpiredException(PASSWORD_EXPIRED_AFTER_POLICY);
+        }
+
         Account account = accountRepository.findByUuid(user.accountUuid())
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND, user.accountUuid()));
+
 
         if (!user.isNonLocked() && LocalDateTime.now().isBefore(account.getLockTime())) {
             throw new AccountLockedException(ACCOUNT_LOCKED, MAX_FAILED_ATTEMPTS, account.getLockTime());
@@ -229,10 +239,10 @@ class AuthenticationService implements AuthenticationFacade {
         account.addRole(userRole);
         account.setVerificationCode(generateVerificationCode());
         account.setVerificationCodeExpiredAt(addMinutesToCurrentDateTime(VERIFICATION_CODE_EXPIRED_TIME));
+        account.setPasswordLastTimeChanged(LocalDateTime.now());
         return account;
     }
 
-    // Method to handle failed login attempts
     private void handleFailedLoginAttempt(final Account account) {
         int failedAttempts = account.getFailedAttempt();
         failedAttempts++;

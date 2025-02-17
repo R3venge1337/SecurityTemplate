@@ -21,7 +21,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static com.template.az.SecurityTemplate.auth.domain.DomainMapper.mapToUserResponse;
-import static com.template.az.SecurityTemplate.auth.domain.DomainMapper.maptoUserWithAccount;
+import static com.template.az.SecurityTemplate.auth.domain.DomainMapper.mapToUserWithAccount;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.USER_NOT_FOUND;
 
 @Service
@@ -62,7 +62,7 @@ class UserService implements UserFacade {
     @Override
     @Transactional
     public UserWithAccount findByUsername(final String username) {
-        return maptoUserWithAccount(userRepository.findByUsername(username)
+        return mapToUserWithAccount(userRepository.findByUsername(username)
                 .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND, username)));
     }
 

@@ -109,4 +109,10 @@ public class GlobalExceptionHandler {
         log.info(exception.getMessage(), exception);
     }
 
+    @ExceptionHandler(PasswordExpiredException.class)
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST)
+    public ErrorDto passwordExpiredException(final PasswordExpiredException exception) {
+        log.warn(exception.getMessage(), exception);
+        return new ErrorDto(exception.getMessage());
+    }
 }
