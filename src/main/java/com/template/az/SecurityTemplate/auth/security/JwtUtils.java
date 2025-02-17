@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Function;
@@ -30,10 +31,10 @@ public class JwtUtils {
     static final String USER_UUID = "userUuid";
     static final String ACCOUNT_UUID = "accountUuid";
     static final String USER_LOGIN = "userLogin";
-    static final String USER_PASSWORD = "userPassword";
     static final String USER_EMAIL = "userEmail";
     static final String ACCOUNT_ENABLED = "accountEnabled";
     static final String ACCOUNT_LOCKED = "accountLocked";
+    static final String PASSWORD_LAST_CHANGE_TIME = "passwordLastTimeChanged";
 
     //retrieve username from jwt token
     public String getUsernameFromToken(final String token) {
@@ -72,10 +73,10 @@ public class JwtUtils {
                 USER_LOGIN, user.username(),
                 ACCOUNT_UUID, user.accountUuid(),
                 USER_UUID, user.userUuid(),
-                USER_PASSWORD, user.password(),
                 USER_EMAIL, user.email(),
                 ACCOUNT_ENABLED, user.isEnabled(),
-                ACCOUNT_LOCKED, user.isNonLocked()
+                ACCOUNT_LOCKED, user.isNonLocked(),
+                PASSWORD_LAST_CHANGE_TIME, user.passwordLastTimeChanged().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
         );
 
         return doGenerateToken(extraClaims, user);
