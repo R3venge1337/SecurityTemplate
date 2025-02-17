@@ -1,6 +1,7 @@
 package com.template.az.SecurityTemplate.auth.security;
 
 
+import com.template.az.SecurityTemplate.auth.dto.JWTBodyAttributes;
 import com.template.az.SecurityTemplate.auth.dto.UserWithAccount;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -50,15 +52,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             final String userRole = String.valueOf(claims.get(JwtUtils.USER_TYPE, ArrayList.class));
             final String accountUuid = claims.get(JwtUtils.ACCOUNT_UUID, String.class);
             final String userUuid = claims.get(JwtUtils.USER_UUID, String.class);
-            final String accountPassword = claims.get(JwtUtils.USER_PASSWORD, String.class);
             final String userEmail = claims.get(JwtUtils.USER_EMAIL, String.class);
             final String accountEnabled = String.valueOf(claims.get(JwtUtils.ACCOUNT_ENABLED, Boolean.class));
             final String accountLocked = String.valueOf(claims.get(JwtUtils.ACCOUNT_LOCKED, Boolean.class));
+            final String passwordChangedTime = String.valueOf(claims.get(JwtUtils.PASSWORD_LAST_CHANGE_TIME, LocalDateTime.class));
+
+            final JWTBodyAttributes attributes = new JWTBodyAttributes(userUuid, accountUuid, username, userEmail, userRole, accountEnabled, accountLocked, passwordChangedTime);
 
 
             if (!jwtTokenUtil.isTokenExpired(jwt)) {
                 final UsernamePasswordAuthenticationToken authenticationToken =
-                        new UsernamePasswordAuthenticationToken(new UserWithAccount(UUID.fromString(userUuid), UUID.fromString(accountUuid), username, accountPassword, userEmail, Set.of(userRole), Boolean.valueOf(accountEnabled), Boolean.valueOf(accountLocked)), null, List.of(new SimpleGrantedAuthority(userRole)));
+                        new UsernamePasswordAuthenticationToken(createJwtBody(attributes), null, List.of(new SimpleGrantedAuthority(userRole)));
 
                 authenticationToken.setDetails(
                         new WebAuthenticationDetailsSource().buildDetails(request)
@@ -69,5 +73,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private UserWithAccount createJwtBody(final JWTBodyAttributes attributes) {
+        return new UserWithAccount(UUID.fromString(attributes.userUuid()), UUID.fromString(attributes.accountUuid()), attributes.username(), null, attributes.userEmail(), Set.of(attributes.userRole()), Boolean.valueOf(attributes.accountEnabled()), Boolean.valueOf(attributes.accountLocked()), LocalDateTime.parse(attributes.passwordChangedTime()));
     }
 }
