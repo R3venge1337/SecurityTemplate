@@ -65,6 +65,8 @@ class Account extends AbstractUUIDEntity {
 
     private LocalDateTime lockTime;
 
+    private LocalDateTime passwordLastTimeChanged;
+
     @ManyToMany(fetch = FetchType.LAZY,
             cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
