@@ -19,9 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.ACCOUNT_IS_TAKEN;
 import static com.template.az.SecurityTemplate.common.exception.error.ErrorMessages.ACCOUNT_NOT_FOUND;
@@ -43,7 +41,7 @@ class AccountService implements AccountFacade {
 
         final AccountSpecification specification = new AccountSpecification(filterForm);
         final Page<AccountDto> accounts = accountRepository.findAll(specification, PageableUtils.createPageable(pageableRequest))
-                .map(this::mapToDto);
+                .map(DomainMapper::mapToDto);
 
         return PageableUtils.toDto(accounts);
     }
@@ -76,14 +74,14 @@ class AccountService implements AccountFacade {
     @Transactional
     public AccountDto findAccountByName(final String name) {
         return accountRepository.findByUsername(name)
-                .map(this::mapToDto)
+                .map(DomainMapper::mapToDto)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND, name));
     }
 
     @Override
     public AccountDto findAccount(final UUID uuid) {
         return accountRepository.findByUuid(uuid)
-                .map(this::mapToDto)
+                .map(DomainMapper::mapToDto)
                 .orElseThrow(() -> new NotFoundException(ACCOUNT_NOT_FOUND, uuid));
     }
 
@@ -111,7 +109,7 @@ class AccountService implements AccountFacade {
     @Override
     public List<AccountDto> findExpiredAccounts(final Integer accountExpiredAge) {
         return accountRepository.findExpiredAccounts(accountExpiredAge).stream()
-                .map(this::mapToDto)
+                .map(DomainMapper::mapToDto)
                 .toList();
     }
 
@@ -121,15 +119,6 @@ class AccountService implements AccountFacade {
         accountRepository.deleteByUuid(uuid);
     }
 
-    AccountDto mapToDto(final Account account) {
-        return new AccountDto(account.getUuid(), account.getUsername(), account.getPassword(), account.getEmail(), account.getEnabled(), account.getAccountNonLocked(), account.getCreatedAt(), mapToSetRoles(account));
-    }
-
-    private Set<String> mapToSetRoles(final Account account) {
-        return account.getRoles().stream()
-                .map(Role::getName)
-                .collect(Collectors.toUnmodifiableSet());
-    }
 
     private void checkUnique(final String formLogin, final String entityLogin) {
         if (!formLogin.equals(entityLogin)) {
