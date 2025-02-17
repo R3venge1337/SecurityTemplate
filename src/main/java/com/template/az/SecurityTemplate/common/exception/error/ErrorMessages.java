@@ -18,4 +18,5 @@ public class ErrorMessages {
     public static final String USER_IS_TAKEN = "Error: Username is already taken!: %s";
     public static final String PASSWORD_NOT_MATCH = "Error: Login or password are wrong, check if you typed everything properly ";
     public static final String ACCOUNT_LOCKED = "Error: Account has been locked due to exceeded max number of login attempts %s: Account has been locked to %s";
+    public static final String PASSWORD_EXPIRED_AFTER_POLICY = "Password has been expired because of our policy of 30 days to keep same password. Please change password";
 }
