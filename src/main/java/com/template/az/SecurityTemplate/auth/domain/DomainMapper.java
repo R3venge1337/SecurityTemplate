@@ -47,6 +47,7 @@ class DomainMapper {
         return UserWithAccount.builder()
                 .userUuid(user.getUuid())
                 .accountUuid(account.getUuid())
+                .username(user.getSurname())
                 .email(account.getEmail())
                 .roles(mapToSetRoles(account))
                 .isEnabled(account.getEnabled())
